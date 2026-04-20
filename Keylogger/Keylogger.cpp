@@ -118,7 +118,7 @@ void InitNotifyWindow()
 
 enum FadeState { FADE_IN, SHOW, FADE_OUT };
 
-const int ANIMATION_STEP_MS = 16;
+const int ANIMATION_STEP_MS = 5;
 const int FADE_DURATION_MS = 300;
 const BYTE TARGET_ALPHA = 64;
 
@@ -614,7 +614,7 @@ LRESULT CALLBACK WelcomeWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPara
         }
         
         // 绘制按钮背景（带圆角）
-        int radius = 10;
+        int radius = 6;
         Gdiplus::RectF rectF((float)buttonRect.left, (float)buttonRect.top, 
                             (float)(buttonRect.right - buttonRect.left), 
                             (float)(buttonRect.bottom - buttonRect.top));
@@ -792,6 +792,42 @@ LRESULT CALLBACK WelcomeWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPara
     }
 }
 
+// 欢迎窗口动画数据
+struct WelcomeWindowAnimationData
+{
+    HWND hWnd;
+    int currentAlpha;
+    int targetAlpha;
+    int step;
+    UINT_PTR timerId;
+};
+
+// 欢迎窗口动画回调函数
+VOID CALLBACK WelcomeWindowAnimationCallback(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
+{
+    WelcomeWindowAnimationData* data = (WelcomeWindowAnimationData*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
+    if (!data) return;
+    
+    data->currentAlpha += data->step;
+    
+    if (data->step > 0 && data->currentAlpha >= data->targetAlpha)
+    {
+        data->currentAlpha = data->targetAlpha;
+        KillTimer(hwnd, data->timerId);
+        delete data;
+        SetWindowLongPtr(hwnd, GWLP_USERDATA, 0);
+    }
+    else if (data->step < 0 && data->currentAlpha <= data->targetAlpha)
+    {
+        data->currentAlpha = data->targetAlpha;
+        KillTimer(hwnd, data->timerId);
+        delete data;
+        SetWindowLongPtr(hwnd, GWLP_USERDATA, 0);
+    }
+    
+    SetLayeredWindowAttributes(hwnd, 0, (BYTE)data->currentAlpha, LWA_ALPHA);
+}
+
 void ShowWelcomeWindow()
 {
     static bool classRegistered = false;
@@ -835,11 +871,21 @@ void ShowWelcomeWindow()
     
     if (g_hWelcomeWnd)
     {
-        // 设置窗口的透明度为 255（完全不透明）
-        SetLayeredWindowAttributes(g_hWelcomeWnd, 0, 255, LWA_ALPHA);
+        // 设置窗口的初始透明度为 0（完全透明）
+        SetLayeredWindowAttributes(g_hWelcomeWnd, 0, 0, LWA_ALPHA);
         
         ShowWindow(g_hWelcomeWnd, SW_SHOW);
         UpdateWindow(g_hWelcomeWnd);
+        
+        // 开始淡入动画
+        WelcomeWindowAnimationData* data = new WelcomeWindowAnimationData;
+        data->hWnd = g_hWelcomeWnd;
+        data->currentAlpha = 0;
+        data->targetAlpha = 255;
+        data->step = 15;
+        data->timerId = SetTimer(g_hWelcomeWnd, 1, 8, WelcomeWindowAnimationCallback);
+        
+        SetWindowLongPtr(g_hWelcomeWnd, GWLP_USERDATA, (LONG_PTR)data);
     }
 }
 
