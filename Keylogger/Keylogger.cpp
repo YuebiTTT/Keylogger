@@ -882,8 +882,8 @@ void ShowWelcomeWindow()
         data->hWnd = g_hWelcomeWnd;
         data->currentAlpha = 0;
         data->targetAlpha = 255;
-        data->step = 15;
-        data->timerId = SetTimer(g_hWelcomeWnd, 1, 8, WelcomeWindowAnimationCallback);
+        data->step = 5;
+        data->timerId = SetTimer(g_hWelcomeWnd, 1, 16, WelcomeWindowAnimationCallback);
         
         SetWindowLongPtr(g_hWelcomeWnd, GWLP_USERDATA, (LONG_PTR)data);
     }
