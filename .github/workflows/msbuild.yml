@@ -43,7 +43,7 @@ jobs:
     - name: Build
       working-directory: ${{env.GITHUB_WORKSPACE}}
       run: |
-        msbuild /m /p:Configuration=${{env.BUILD_CONFIGURATION}} /p:Platform=x64 ${{env.SOLUTION_FILE_PATH}}
+        msbuild /m /p:Configuration=${{env.BUILD_CONFIGURATION}} /p:Platform=x64 /p:Version=${{ steps.set_version.outputs.version }} ${{env.SOLUTION_FILE_PATH}}
 
     - name: Find build artifacts
       run: |
@@ -60,16 +60,32 @@ jobs:
           throw "Keylogger.exe not found in build output"
         }
 
+    - name: Set version number
+      id: set_version
+      run: |
+        # 设置版本号为 1.0.{run_number}
+        $major = 1
+        $minor = 0
+        $patch = $env:GITHUB_RUN_NUMBER
+        $version = "$major.$minor.$patch"
+        Write-Host "Version: $version"
+        echo "version=$version" >> $env:GITHUB_OUTPUT
+
     - name: Create GitHub Release
       id: create_release
       uses: actions/create-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: v${{ github.run_number }}
-        release_name: Release v${{ github.run_number }}
+        tag_name: v${{ steps.set_version.outputs.version }}
+        release_name: Release v${{ steps.set_version.outputs.version }}
         draft: false
         prerelease: false
+
+    - name: Rename artifact with version
+      run: |
+        $version = "${{ steps.set_version.outputs.version }}"
+        Rename-Item -Path "${{ github.workspace }}\artifacts\Keylogger.exe" -NewName "Keylogger_v$version.exe"
 
     - name: Upload Release Asset
       uses: actions/upload-release-asset@v1
@@ -77,6 +93,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ${{ github.workspace }}\artifacts\Keylogger.exe
-        asset_name: Keylogger.exe
+        asset_path: ${{ github.workspace }}\artifacts\Keylogger_v${{ steps.set_version.outputs.version }}.exe
+        asset_name: Keylogger_v${{ steps.set_version.outputs.version }}.exe
         asset_content_type: application/octet-stream
