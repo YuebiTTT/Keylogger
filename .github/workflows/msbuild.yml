@@ -14,7 +14,7 @@ env:
   VCPKG_ROOT: ${{ github.workspace }}\vcpkg
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -44,3 +44,30 @@ jobs:
       working-directory: ${{env.GITHUB_WORKSPACE}}
       run: |
         msbuild /m /p:Configuration=${{env.BUILD_CONFIGURATION}} /p:Platform=x64 ${{env.SOLUTION_FILE_PATH}}
+
+    - name: Prepare release artifacts
+      run: |
+        New-Item -ItemType Directory -Path "${{ github.workspace }}\artifacts" -Force
+        Copy-Item -Path "${{ github.workspace }}\Keylogger\x64\Release\Keylogger.exe" -Destination "${{ github.workspace }}\artifacts\" -Force
+        Get-ChildItem -Path "${{ github.workspace }}\artifacts"
+
+    - name: Create GitHub Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ github.run_number }}
+        release_name: Release v${{ github.run_number }}
+        draft: false
+        prerelease: false
+
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ${{ github.workspace }}\artifacts\Keylogger.exe
+        asset_name: Keylogger.exe
+        asset_content_type: application/octet-stream
