@@ -45,11 +45,20 @@ jobs:
       run: |
         msbuild /m /p:Configuration=${{env.BUILD_CONFIGURATION}} /p:Platform=x64 ${{env.SOLUTION_FILE_PATH}}
 
-    - name: Prepare release artifacts
+    - name: Find build artifacts
       run: |
-        New-Item -ItemType Directory -Path "${{ github.workspace }}\artifacts" -Force
-        Copy-Item -Path "${{ github.workspace }}\Keylogger\x64\Release\Keylogger.exe" -Destination "${{ github.workspace }}\artifacts\" -Force
-        Get-ChildItem -Path "${{ github.workspace }}\artifacts"
+        Write-Host "Searching for Keylogger.exe in the repository..."
+        $exePath = Get-ChildItem -Path "${{ github.workspace }}" -Name "Keylogger.exe" -Recurse
+        if ($exePath) {
+          Write-Host "Found Keylogger.exe at: $exePath"
+          New-Item -ItemType Directory -Path "${{ github.workspace }}\artifacts" -Force
+          Copy-Item -Path "${{ github.workspace }}\$exePath" -Destination "${{ github.workspace }}\artifacts\" -Force
+          Get-ChildItem -Path "${{ github.workspace }}\artifacts"
+        } else {
+          Write-Host "Keylogger.exe not found, listing all files in repository..."
+          Get-ChildItem -Path "${{ github.workspace }}" -Recurse | Select-Object FullName | Where-Object { $_.FullName -like "*.exe" }
+          throw "Keylogger.exe not found in build output"
+        }
 
     - name: Create GitHub Release
       id: create_release
