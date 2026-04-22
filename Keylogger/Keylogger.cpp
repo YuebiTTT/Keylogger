@@ -65,6 +65,7 @@ std::mutex g_configMutex;
 size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* s);
 std::string readFileContent(const std::string& filePath);
 std::string getExecutableDir();
+std::string GetLogDirectory();
 
 #if FORMAT == 0
 const std::map<int, std::string> keyname{
@@ -352,15 +353,15 @@ bool g_isDragging = false;
 POINT g_dragStartPos;
 
 // 现代颜色方案
-#define COLOR_BACKGROUND RGB(255, 255, 255)
-#define COLOR_PRIMARY RGB(255, 255, 255)
-#define COLOR_PRIMARY_DARK RGB(240, 240, 240)
-#define COLOR_TEXT RGB(31, 41, 55)
-#define COLOR_TEXT_LIGHT RGB(75, 85, 99)
-#define COLOR_ACCENT RGB(16, 185, 129)
-#define COLOR_BORDER RGB(229, 231, 235)
-#define COLOR_BUTTON_HOVER RGB(209, 213, 219)
-#define COLOR_BUTTON_PRESSED RGB(191, 219, 254)
+#define APP_COLOR_BACKGROUND RGB(255, 255, 255)
+#define APP_COLOR_PRIMARY RGB(255, 255, 255)
+#define APP_COLOR_PRIMARY_DARK RGB(240, 240, 240)
+#define APP_COLOR_TEXT RGB(31, 41, 55)
+#define APP_COLOR_TEXT_LIGHT RGB(75, 85, 99)
+#define APP_COLOR_ACCENT RGB(16, 185, 129)
+#define APP_COLOR_BORDER RGB(229, 231, 235)
+#define APP_COLOR_BUTTON_HOVER RGB(209, 213, 219)
+#define APP_COLOR_BUTTON_PRESSED RGB(191, 219, 254)
 
 LRESULT CALLBACK WelcomeWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
