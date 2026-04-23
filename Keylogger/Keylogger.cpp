@@ -1239,16 +1239,7 @@ std::string MakeOutputFilename()
     return logDir + "\\" + filename;
 }
 
-size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* s) {
-    size_t newLength = size * nmemb;
-    try {
-        s->append((char*)contents, newLength);
-    }
-    catch (std::bad_alloc&) {
-        return 0;
-    }
-    return newLength;
-}
+
 
 std::string readFileContent(const std::string& filePath) {
     std::ifstream file(filePath, std::ios::binary | std::ios::ate);
