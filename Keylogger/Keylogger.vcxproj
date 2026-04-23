@@ -128,7 +128,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="AutoUpdater.cpp" />
     <ClCompile Include="Keylogger.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="AutoUpdater.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
