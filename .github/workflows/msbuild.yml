@@ -63,9 +63,9 @@ jobs:
     - name: Set version number
       id: set_version
       run: |
-        # 设置版本号为 1.0.{run_number}
-        $major = 1
-        $minor = 0
+        # 设置版本号
+        $major = 4
+        $minor = 1
         $patch = $env:GITHUB_RUN_NUMBER
         $version = "$major.$minor.$patch"
         Write-Host "Version: $version"
