@@ -10,7 +10,7 @@ env:
   SOLUTION_FILE_PATH: Keylogger.sln
   BUILD_CONFIGURATION: Release
   # 根据项目实际平台设置：x86-windows 或 x64-windows
-  VCPKG_DEFAULT_TRIPLET: x64-windows
+  VCPKG_DEFAULT_TRIPLET: x64-windows-static
   VCPKG_ROOT: ${{ github.workspace }}\vcpkg
 
 permissions:
